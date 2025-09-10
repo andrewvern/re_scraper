@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for development
+  postgres:
+    image: postgres:15-alpine
+    container_name: re_scraper_postgres_dev
+    environment:
+      POSTGRES_DB: real_estate_scraper_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: re_scraper_redis_dev
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+
+  # Development API Application
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: re_scraper_api_dev
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: dev_password
+      DB_DATABASE: real_estate_scraper_dev
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      
+      # API
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_DEBUG: "true"
+      SECRET_KEY: "dev-secret-key-not-for-production"
+      
+      # Scraping
+      REQUESTS_PER_MINUTE: 10
+      DELAY_BETWEEN_REQUESTS: 1.0
+      USE_PROXY: "false"
+      HEADLESS_BROWSER: "true"
+      
+      # Logging
+      LOG_LEVEL: DEBUG
+      ENVIRONMENT: development
+    ports:
+      - "8001:8000"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+      - ./tests:/app/tests
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+
+networks:
+  default:
+    name: re_scraper_dev_network
+
