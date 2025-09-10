@@ -7,10 +7,11 @@ from datetime import datetime
 import logging
 from pathlib import Path
 
-from .data_validator import DataValidator
-from .data_transformer import DataTransformer
-from .deduplication import DeduplicationEngine
-from ..models.property_models import PropertyModel
+# Use absolute imports instead of relative ones
+from src.etl.data_validator import DataValidator
+from src.etl.data_transformer import DataTransformer
+from src.etl.deduplication import DeduplicationEngine
+from src.models.property_models import PropertyModel
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +87,9 @@ class DataProcessor:
             logger.info("Step 4: Enriching data")
             enriched_df = self._enrich_data(unique_df)
             
-            # Step 5: Save to database
-            logger.info("Step 5: Saving to database")
-            saved_count = self._save_to_database(enriched_df, job_id)
+            # Step 5: Save to CSV
+            logger.info("Step 5: Saving to CSV")
+            saved_count = self.save_to_csv(enriched_df, job_id)
             results['saved'] = saved_count
             results['processed'] = len(enriched_df)
             
@@ -372,8 +373,8 @@ class DataProcessor:
         logger.info("Geocoding functionality placeholder - integrate with geocoding service")
         return df
     
-    def _save_to_database(self, df: pd.DataFrame, job_id: str) -> int:
-        """Save processed data to the database.
+    def save_to_csv(self, df: pd.DataFrame, job_id: str) -> int:
+        """Save processed data to a CSV file.
         
         Args:
             df: DataFrame with processed data
@@ -382,79 +383,22 @@ class DataProcessor:
         Returns:
             int: Number of records saved
         """
-        saved_count = 0
-        
-        for _, row in df.iterrows():
-            try:
-                property_data = row.to_dict()
-                
-                # Separate location data
-                location_data = {
-                    'street_address': property_data.get('street_address', ''),
-                    'city': property_data.get('city', ''),
-                    'state': property_data.get('state', ''),
-                    'zip_code': property_data.get('zip_code', ''),
-                    'latitude': property_data.get('latitude'),
-                    'longitude': property_data.get('longitude'),
-                    'neighborhood': property_data.get('neighborhood'),
-                    'county': property_data.get('county')
-                }
-                
-                # Create location schema
-                location_schema = LocationSchema(**{k: v for k, v in location_data.items() if v is not None})
-                
-                # Prepare property data
-                property_create_data = {
-                    'external_id': property_data.get('external_id', ''),
-                    'data_source': property_data.get('data_source', DataSource.REDFIN),
-                    'property_type': property_data.get('property_type'),
-                    'bedrooms': property_data.get('bedrooms'),
-                    'bathrooms': property_data.get('bathrooms'),
-                    'square_feet': property_data.get('square_feet'),
-                    'lot_size': property_data.get('lot_size'),
-                    'year_built': property_data.get('year_built'),
-                    'price': property_data.get('price'),
-                    'price_per_sqft': property_data.get('price_per_sqft'),
-                    'rent_estimate': property_data.get('rent_estimate'),
-                    'garage_spaces': property_data.get('garage_spaces'),
-                    'pool': property_data.get('pool', False),
-                    'fireplace': property_data.get('fireplace', False),
-                    'basement': property_data.get('basement', False),
-                    'stories': property_data.get('stories'),
-                    'description': property_data.get('description'),
-                    'features': property_data.get('features'),
-                    'images': property_data.get('images'),
-                    'location': location_schema
-                }
-                
-                # Remove None values
-                property_create_data = {k: v for k, v in property_create_data.items() if v is not None}
-                
-                # Check if property already exists
-                existing_property = PropertyCRUD.get_by_external_id(
-                    self.db, 
-                    property_create_data['external_id'],
-                    property_create_data['data_source']
-                )
-                
-                if existing_property:
-                    # Update existing property
-                    logger.debug(f"Updating existing property: {property_create_data['external_id']}")
-                    # Update logic would go here
-                else:
-                    # Create new property
-                    property_create = PropertyCreate(**property_create_data)
-                    new_property = PropertyCRUD.create(self.db, property_create)
-                    logger.debug(f"Created new property: {new_property.id}")
-                
-                saved_count += 1
-                
-            except Exception as e:
-                logger.error(f"Error saving property to database: {e}")
-                continue
-        
-        logger.info(f"Saved {saved_count} properties to database")
-        return saved_count
+        try:
+            # Create output filename with timestamp and job_id
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'properties_{job_id}_{timestamp}.csv'
+            output_path = self.output_dir / filename
+            
+            # Save to CSV
+            df.to_csv(output_path, index=False)
+            saved_count = len(df)
+            
+            logger.info(f"Saved {saved_count} properties to {output_path}")
+            return saved_count
+            
+        except Exception as e:
+            logger.error(f"Error saving properties to CSV: {e}")
+            return 0
     
     def process_single_property(self, property_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process a single property record.

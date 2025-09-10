@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 class DeduplicationEngine:
     """Engine for detecting and handling duplicate property records.
     
-    This version uses a simple JSON file to store property fingerprints instead of a database.
-    In production, this would be replaced with a proper database for better performance and reliability.
+    This implementation uses a simple JSON file to store property fingerprints,
+    making it easy to maintain and portable without external dependencies.
     """
     
     def __init__(self, data_dir: str = None):

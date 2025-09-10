@@ -1,14 +1,20 @@
 """Data models package."""
 
-from .property_models import Property, PropertyListing, PropertyMetrics
-from .scraper_models import ScrapeJob, ScrapeResult, ScrapingStatus
+from .property_models import (
+    PropertyModel,
+    PropertyListingModel,
+    PropertyMetricsModel,
+    PropertyType,
+    ListingStatus,
+    DataSource
+)
 
 __all__ = [
-    "Property",
-    "PropertyListing", 
-    "PropertyMetrics",
-    "ScrapeJob",
-    "ScrapeResult",
-    "ScrapingStatus"
+    "PropertyModel",
+    "PropertyListingModel",
+    "PropertyMetricsModel",
+    "PropertyType",
+    "ListingStatus",
+    "DataSource"
 ]
 
