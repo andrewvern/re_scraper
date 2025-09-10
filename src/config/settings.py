@@ -1,26 +1,8 @@
-"""Configuration settings for the Real Estate Scraper Backend."""
+"""Configuration settings for the Real Estate Scraper."""
 
-import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic_settings import BaseSettings
 from pydantic import Field
-
-
-class DatabaseSettings(BaseSettings):
-    """Database configuration."""
-    
-    host: str = Field(default="localhost", env="DB_HOST")
-    port: int = Field(default=5432, env="DB_PORT")
-    username: str = Field(default="postgres", env="DB_USERNAME")
-    password: str = Field(default="password", env="DB_PASSWORD")
-    database: str = Field(default="real_estate_scraper", env="DB_DATABASE")
-    
-    model_config = {"extra": "ignore"}
-    
-    @property
-    def database_url(self) -> str:
-        """Construct database URL."""
-        return f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
 class ScraperSettings(BaseSettings):
@@ -49,40 +31,22 @@ class ScraperSettings(BaseSettings):
     model_config = {"extra": "ignore"}
 
 
-class APISettings(BaseSettings):
-    """API configuration."""
+class ETLSettings(BaseSettings):
+    """ETL configuration."""
     
-    host: str = Field(default="0.0.0.0", env="API_HOST")
-    port: int = Field(default=8000, env="API_PORT")
-    debug: bool = Field(default=False, env="API_DEBUG")
+    # Output settings
+    output_dir: str = Field(default="./data", env="OUTPUT_DIR")
+    csv_filename: str = Field(default="properties.csv", env="CSV_FILENAME")
     
-    # Authentication
-    secret_key: str = Field(default="your-secret-key-change-this", env="SECRET_KEY")
-    algorithm: str = Field(default="HS256", env="ALGORITHM")
-    access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    # Data processing
+    deduplicate_data: bool = Field(default=True, env="DEDUPLICATE_DATA")
+    validate_data: bool = Field(default=True, env="VALIDATE_DATA")
     
-    # Rate limiting
-    rate_limit_per_minute: int = Field(default=100, env="RATE_LIMIT_PER_MINUTE")
-    
-    model_config = {"extra": "ignore"}
-
-
-class RedisSettings(BaseSettings):
-    """Redis configuration for Celery."""
-    
-    host: str = Field(default="localhost", env="REDIS_HOST")
-    port: int = Field(default=6379, env="REDIS_PORT")
-    db: int = Field(default=0, env="REDIS_DB")
-    password: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
+    # Export settings
+    export_format: str = Field(default="csv", env="EXPORT_FORMAT")
+    csv_encoding: str = Field(default="utf-8", env="CSV_ENCODING")
     
     model_config = {"extra": "ignore"}
-    
-    @property
-    def redis_url(self) -> str:
-        """Construct Redis URL."""
-        if self.password:
-            return f"redis://:{self.password}@{self.host}:{self.port}/{self.db}"
-        return f"redis://{self.host}:{self.port}/{self.db}"
 
 
 class Settings(BaseSettings):
@@ -95,14 +59,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     log_file: Optional[str] = Field(default=None, env="LOG_FILE")
     
-    # Monitoring
-    sentry_dsn: Optional[str] = Field(default=None, env="SENTRY_DSN")
-    
     # Component settings
-    database: DatabaseSettings = DatabaseSettings()
     scraper: ScraperSettings = ScraperSettings()
-    api: APISettings = APISettings()
-    redis: RedisSettings = RedisSettings()
+    etl: ETLSettings = ETLSettings()
     
     model_config = {"extra": "ignore", "env_file": ".env", "env_file_encoding": "utf-8"}
 

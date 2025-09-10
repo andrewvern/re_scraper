@@ -4,23 +4,34 @@ import hashlib
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from difflib import SequenceMatcher
-from sqlalchemy.orm import Session
-
-from ..database.crud import PropertyCRUD
+from pathlib import Path
+import json
 
 logger = logging.getLogger(__name__)
 
 
 class DeduplicationEngine:
-    """Engine for detecting and handling duplicate property records."""
+    """Engine for detecting and handling duplicate property records.
     
-    def __init__(self, db_session: Session):
+    This version uses a simple JSON file to store property fingerprints instead of a database.
+    In production, this would be replaced with a proper database for better performance and reliability.
+    """
+    
+    def __init__(self, data_dir: str = None):
         """Initialize the deduplication engine.
         
         Args:
-            db_session: Database session for querying existing properties
+            data_dir: Optional directory to store fingerprint data, defaults to temp directory
         """
-        self.db = db_session
+        if data_dir:
+            self.data_dir = Path(data_dir)
+        else:
+            import tempfile
+            self.data_dir = Path(tempfile.gettempdir()) / "re_scraper"
+            
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.fingerprint_file = self.data_dir / "property_fingerprints.json"
+        self._load_fingerprints()
         self.similarity_threshold = 0.85  # Minimum similarity for duplicate detection
         
         # Weight different fields for similarity calculation
@@ -65,8 +76,28 @@ class DeduplicationEngine:
             logger.error(f"Error checking for duplicates: {e}")
             return False
     
+    def _load_fingerprints(self):
+        """Load property fingerprints from JSON file."""
+        if self.fingerprint_file.exists():
+            try:
+                with open(self.fingerprint_file, 'r') as f:
+                    self.fingerprints = set(json.load(f))
+            except Exception as e:
+                logger.error(f"Error loading fingerprints: {e}")
+                self.fingerprints = set()
+        else:
+            self.fingerprints = set()
+    
+    def _save_fingerprints(self):
+        """Save property fingerprints to JSON file."""
+        try:
+            with open(self.fingerprint_file, 'w') as f:
+                json.dump(list(self.fingerprints), f)
+        except Exception as e:
+            logger.error(f"Error saving fingerprints: {e}")
+
     def _is_exact_duplicate(self, property_data: Dict[str, Any]) -> bool:
-        """Check for exact duplicates based on external ID and data source.
+        """Check for exact duplicates based on fingerprint.
         
         Args:
             property_data: Property data to check
@@ -74,20 +105,19 @@ class DeduplicationEngine:
         Returns:
             bool: True if exact duplicate exists
         """
-        external_id = property_data.get('external_id')
-        data_source = property_data.get('data_source')
+        fingerprint = self.create_address_hash(property_data)
         
-        if not external_id or not data_source:
-            return False
+        if fingerprint in self.fingerprints:
+            return True
         
-        existing_property = PropertyCRUD.get_by_external_id(
-            self.db, external_id, data_source
-        )
-        
-        return existing_property is not None
+        self.fingerprints.add(fingerprint)
+        self._save_fingerprints()
+        return False
     
     def _find_similar_properties(self, property_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Find properties that might be similar to the given property.
+        """Find similar properties within the current batch.
+        Since we're not using a database, this will return an empty list.
+        In production, this would query similar properties from a database.
         
         Args:
             property_data: Property data to find similarities for
@@ -95,46 +125,7 @@ class DeduplicationEngine:
         Returns:
             List[Dict[str, Any]]: List of potentially similar properties
         """
-        similar_properties = []
-        
-        try:
-            # Search by location first to narrow down candidates
-            city = property_data.get('city')
-            state = property_data.get('state')
-            zip_code = property_data.get('zip_code')
-            
-            if not (city and state):
-                return similar_properties
-            
-            # Get properties in the same area
-            candidates = PropertyCRUD.search(
-                self.db,
-                city=city,
-                state=state,
-                zip_code=zip_code,
-                limit=50  # Limit candidates for performance
-            )
-            
-            # Convert to dictionaries for comparison
-            for candidate in candidates:
-                candidate_data = {
-                    'street_address': candidate.location.street_address if candidate.location else '',
-                    'city': candidate.location.city if candidate.location else '',
-                    'state': candidate.location.state if candidate.location else '',
-                    'zip_code': candidate.location.zip_code if candidate.location else '',
-                    'bedrooms': candidate.bedrooms,
-                    'bathrooms': candidate.bathrooms,
-                    'square_feet': candidate.square_feet,
-                    'price': candidate.price,
-                    'external_id': candidate.external_id,
-                    'data_source': candidate.data_source
-                }
-                similar_properties.append(candidate_data)
-            
-        except Exception as e:
-            logger.error(f"Error finding similar properties: {e}")
-        
-        return similar_properties
+        return []  # No similar properties without database
     
     def _calculate_similarity(self, property1: Dict[str, Any], property2: Dict[str, Any]) -> float:
         """Calculate similarity score between two properties.

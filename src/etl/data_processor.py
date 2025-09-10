@@ -5,13 +5,12 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import logging
-from sqlalchemy.orm import Session
+from pathlib import Path
 
 from .data_validator import DataValidator
 from .data_transformer import DataTransformer
 from .deduplication import DeduplicationEngine
-from ..database.crud import PropertyCRUD, LocationCRUD, ListingCRUD, ScrapeResultCRUD
-from ..models.property_models import PropertyCreate, LocationSchema, DataSource
+from ..models.property_models import PropertyModel
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +18,18 @@ logger = logging.getLogger(__name__)
 class DataProcessor:
     """Main data processing pipeline for scraped real estate data."""
     
-    def __init__(self, db_session: Session):
+    def __init__(self, output_dir: str):
         """Initialize the data processor.
         
         Args:
-            db_session: Database session for data operations
+            output_dir: Directory to store output CSV files
         """
-        self.db = db_session
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
         self.validator = DataValidator()
         self.transformer = DataTransformer()
-        self.deduplicator = DeduplicationEngine(db_session)
+        self.deduplicator = DeduplicationEngine()
         
     def process_scraped_data(self, scraped_data: List[Dict[str, Any]], job_id: str) -> Dict[str, Any]:
         """Process a batch of scraped real estate data.

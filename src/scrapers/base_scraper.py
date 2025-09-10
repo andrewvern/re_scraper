@@ -16,8 +16,29 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from fake_useragent import UserAgent
 
-from ..config import settings
+from pathlib import Path
 from ..models.property_models import DataSource
+
+# Fallback settings if config module not available
+default_settings = {
+    'scraper': {
+        'requests_per_minute': 60,
+        'delay_between_requests': 1.0,
+        'random_delays': True,
+        'min_delay': 0.5,
+        'max_delay': 2.0,
+        'headless_browser': True,
+        'browser_timeout': 30,
+        'use_proxy': False,
+        'proxy_list': [],
+        'output_dir': 'output'
+    }
+}
+
+try:
+    from ..config import settings
+except ImportError:
+    settings = type('Settings', (), default_settings)()
 
 
 class ScrapingError(Exception):
