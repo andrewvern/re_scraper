@@ -17,28 +17,23 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 from fake_useragent import UserAgent
 
 from pathlib import Path
-from ..models.property_models import DataSource
 
-# Fallback settings if config module not available
+# Scraper settings
 default_settings = {
-    'scraper': {
-        'requests_per_minute': 60,
-        'delay_between_requests': 1.0,
-        'random_delays': True,
-        'min_delay': 0.5,
-        'max_delay': 2.0,
-        'headless_browser': True,
-        'browser_timeout': 30,
-        'use_proxy': False,
-        'proxy_list': [],
-        'output_dir': 'output'
-    }
+    'requests_per_minute': 60,
+    'delay_between_requests': 1.0,
+    'random_delays': True,
+    'min_delay': 0.5,
+    'max_delay': 2.0,
+    'headless_browser': True,
+    'browser_timeout': 30,
+    'use_proxy': False,
+    'proxy_list': [],
+    'output_dir': 'output'
 }
 
-try:
-    from ..config import settings
-except ImportError:
-    settings = type('Settings', (), default_settings)()
+# Create settings object from defaults
+settings = type('Settings', (), {'scraper': default_settings})()
 
 
 class ScrapingError(Exception):
@@ -54,11 +49,11 @@ class RateLimitError(ScrapingError):
 class BaseScraper(ABC):
     """Base scraper class with anti-detection and common functionality."""
     
-    def __init__(self, data_source: DataSource):
+    def __init__(self, data_source: str):
         """Initialize the base scraper.
         
         Args:
-            data_source: The data source this scraper targets
+            data_source: Name of the data source (e.g., 'redfin', 'zillow')
         """
         self.data_source = data_source
         self.logger = logging.getLogger(f"{__name__}.{data_source}")

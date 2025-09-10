@@ -7,14 +7,25 @@ from urllib.parse import urljoin, quote_plus
 from bs4 import BeautifulSoup
 
 from .base_scraper import BaseScraper, ScrapingError
-from ..models.property_models import DataSource, PropertyType
+
+# Simple property type mapping
+PROPERTY_TYPES = {
+    1: 'house',
+    2: 'condo',
+    3: 'townhouse',
+    4: 'multi_family',
+    5: 'land',
+    6: 'other',
+    7: 'other',
+    8: 'other'
+}
 
 
 class RedfinScraper(BaseScraper):
     """Scraper for Redfin real estate platform."""
     
     def __init__(self):
-        super().__init__(DataSource.REDFIN)
+        super().__init__('redfin')
         self.base_url = "https://www.redfin.com"
         self.search_url = "https://www.redfin.com/stingray/api/gis"
         
@@ -66,26 +77,16 @@ class RedfinScraper(BaseScraper):
         
         return f"{self.search_url}?{query_params}"
     
-    def _parse_property_type(self, property_type_code: int) -> PropertyType:
-        """Parse Redfin property type code to our enum.
+    def _parse_property_type(self, property_type_code: int) -> str:
+        """Parse Redfin property type code to string.
         
         Args:
             property_type_code: Redfin property type code
             
         Returns:
-            PropertyType: Mapped property type
+            str: Property type string
         """
-        type_mapping = {
-            1: PropertyType.HOUSE,
-            2: PropertyType.CONDO,
-            3: PropertyType.TOWNHOUSE,
-            4: PropertyType.MULTI_FAMILY,
-            5: PropertyType.LAND,
-            6: PropertyType.OTHER,
-            7: PropertyType.OTHER,
-            8: PropertyType.OTHER
-        }
-        return type_mapping.get(property_type_code, PropertyType.OTHER)
+        return PROPERTY_TYPES.get(property_type_code, 'other')
     
     def _extract_property_data(self, property_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and normalize property data from Redfin API response.
@@ -100,7 +101,7 @@ class RedfinScraper(BaseScraper):
             # Basic property information
             property_info = {
                 'external_id': str(property_data.get('property_id', '')),
-                'data_source': DataSource.REDFIN,
+                'data_source': 'redfin',
                 'property_type': self._parse_property_type(property_data.get('property_type', 1)),
                 'bedrooms': property_data.get('beds'),
                 'bathrooms': property_data.get('baths'),
@@ -290,7 +291,7 @@ class RedfinScraper(BaseScraper):
             Dict[str, Any]: Parsed property data
         """
         property_data = {
-            'data_source': DataSource.REDFIN,
+            'data_source': 'redfin',
             'description': json_data.get('description', ''),
         }
         
@@ -314,7 +315,7 @@ class RedfinScraper(BaseScraper):
             Dict[str, Any]: Parsed property data
         """
         property_data = {
-            'data_source': DataSource.REDFIN,
+            'data_source': 'redfin',
             'listing_url': property_url,
         }
         
